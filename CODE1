@@ -1,0 +1,74 @@
+#include<ThingSpeak.h>    //thingspeak library
+#include <ESP8266WiFi.h>  //esp8266 library
+
+#include <dht.h>          //dht sensor
+dht DHT;
+#define DHT11_PIN D0
+ 
+const char* ssid = "BCB";                  //wifi ID
+const char* password = "abcdefgh";         //wifi password
+const char* serv = "api.thingspeak.com";   //api of thingspeak
+
+WiFiClient client;
+WiFiServer server(80);
+unsigned long myChannelNumber=732233;          //channel id
+const char*myWriteAPIKey="H3QY6U79SKROIS1N";   //write API key
+ 
+void setup() 
+{
+  Serial.begin(115200);
+  Serial.print("Connecting to Internet ");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+ 
+ /*-------- server started---------*/ 
+  server.begin();
+  Serial.println("Server started");
+ 
+  /*------printing ip address--------*/
+  Serial.print("IP Address of network: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Copy and paste the following URL: http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
+  ThingSpeak.begin(client);
+}
+ 
+void loop() 
+  {
+    WiFiClient client = server.available();    
+    if (!client) 
+    {
+      return;
+    }
+  Serial.println("Waiting for new client");   
+  while(!client.available())
+  {
+    delay(1);
+  }
+ 
+  String request = client.readStringUntil('\r');
+  Serial.println(request);
+  client.flush();
+ 
+  /*-------dht11 sensor--------*/
+  int chk = DHT.read11(DHT11_PIN);
+  Serial.print("Temperature = ");
+  int t=DHT.temperature;
+  Serial.println(t);
+  Serial.print("Humidity = ");
+  int h=DHT.humidity;
+  Serial.println(h);
+  delay(1000);
+
+   /*-------sending data to thingspeak--------*/
+  ThingSpeak.writeField(myChannelNumber,1,t,myWriteAPIKey);  //field 1
+  delay(20000);  //interval
+  ThingSpeak.writeField(myChannelNumber,2,h,myWriteAPIKey);  //field 2
+  delay(20000);  //interval  
+}
