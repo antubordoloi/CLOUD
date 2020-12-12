@@ -1,0 +1,114 @@
+#include<ThingSpeak.h>    //thingspeak library
+#include <ESP8266WiFi.h>  //esp8266 library
+
+#include <dht.h>          //dht sensor
+dht DHT;
+#define DHT11_PIN D0
+ 
+const char* ssid = "BCB";                  //wifi ID
+const char* password = "abcdefgh";         //wifi password
+const char* serv = "api.thingspeak.com";   //api of thingspeak
+
+WiFiClient client;
+WiFiServer server(80);
+unsigned long myChannelNumber=732233;          //channel id
+const char*myWriteAPIKey="H3QY6U79SKROIS1N";   //write API key
+ 
+void setup() 
+{
+  Serial.begin(115200);
+  Serial.print("Connecting to Internet ");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+ 
+ /*-------- server started---------*/ 
+  server.begin();
+  Serial.println("Server started");
+ 
+  /*------printing ip address--------*/
+  Serial.print("IP Address of network: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Copy and paste the following URL: http://");
+  Serial.print(WiFi.localIP());
+  Serial.println("/");
+  ThingSpeak.begin(client);
+}
+ 
+void loop() 
+  {
+    WiFiClient client = server.available();    
+    if (!client) 
+    {
+      return;
+    }
+  Serial.println("Waiting for new client");   
+  while(!client.available())
+  {
+    delay(1);
+  }
+ 
+  String request = client.readStringUntil('\r');
+  Serial.println(request);
+  client.flush();
+ 
+  //dht11 sensor
+  int chk = DHT.read11(DHT11_PIN);
+  Serial.print("Temperature = ");
+  int t=DHT.temperature;
+  Serial.println(t);
+  Serial.print("Humidity = ");
+  int h=DHT.humidity;
+  Serial.println(h);
+  delay(1000);
+
+  client.println("HTTP/1.1 200 OK");
+  delay(1);
+  Serial.println("client disconnected");
+  Serial.println(" ");
+  
+  //HTML part
+  client.println("Content-type: text/html");
+  client.println("");
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html>");
+  client.println(" <meta http-equiv = refresh content= 0.5 />");
+  client.println("<head>");
+
+  client.println("<title>");
+  client.println("REAL TIME ANALYSIS");
+  client.println("</title>");
+  
+  client.println("</head>");
+  client.println("<body bgcolor=WHITE>");
+  client.println("<table bgcolor='WHITE' align='center' border='2' cellpadding = '2' cellspacing = '2'>");
+  
+  //Row 1
+  client.println("<tr>");
+  client.print("<td><h1>TEMPERATURE(IN DEGREE CELSIUS)</h1></td>");
+  client.print("<td><h1>HUMIDITY (IN %)</h1></td>");
+  client.println("</tr>");
+  
+  //Row 2
+  client.println("<tr>");
+  client.print("<td><p><h1>");
+  client.print(t);
+  client.println("</h1></p></td>");
+  client.print("<td><p><h1>");
+  client.print(h);
+  client.println("</h1></p></td>");
+  client.println("</tr>");
+  client.println("</table>");
+  client.println("</body>");
+  client.println("</html>");
+
+/*-------sending data to thingspeak--------*/
+  ThingSpeak.writeField(myChannelNumber,1,t,myWriteAPIKey);  //field 1
+  delay(20000);  //interval
+  ThingSpeak.writeField(myChannelNumber,2,h,myWriteAPIKey);  //field 2
+  delay(20000);  //interval  
+}
